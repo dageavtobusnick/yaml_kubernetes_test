@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-deployment
+spec:
+  replicas: 3  # Устанавливаем три пода, так как они справляются с нагрузкой
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - web-app
+              topologyKey: "kubernetes.io/hostname"  
+      containers:
+        - name: web-app-container
+          image: your-app-image:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "128Mi"  # Минимальный запрос по памяти, так как нагрузка ровная
+              cpu: "100m"      # Нагрузка в среднем около 0.1 CPU
+            limits:
+              memory: "128Mi"  # Указываем предельное значение памяти, исходя из стабильного потребления
+              cpu: "1000m"     # Грубое ограничение лимита CPU
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10  # Учитываем, что приложению нужно время для инициализации
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15  # Проверка того, что приложение продолжает работать корректно
+            periodSeconds: 5
+            
+#   Число подов: Для стабильной нагрузки достаточно 3 подов, поэтому задается 3 реплики.
+#   Антиаффинность: Для отказоустойчивости мы используем podAntiAffinity, чтобы поды размещались на разных нодах кластера.
+#   Запросы ресурсов: Мы ограничиваем ресурсы на уровне CPU и памяти, исходя из стабильных потребностей приложения.
+#   На этапе инициализации под может использовать больше ресурсов CPU, поэтому лимит грубо установлен на 1000m, но в обычной работе поду нужно только 0.1 CPU.
+#   Проба готовности (readinessProbe): Приложение начинает обрабатывать запросы только после завершения инициализации (установлен начальный период ожидания 10 секунд).
+#   Проба работоспособности (livenessProbe): Проверка того, что приложение продолжает корректно работать, и его можно перезапустить, если что-то пошло не так.
+#
+#
+#
+#
+#
+#
+#
+#
+#
